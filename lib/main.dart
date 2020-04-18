@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
 void main() => runApp(MyApp());
 
@@ -43,69 +46,203 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+// class PathPoint {
+//   double latitude;
+//   double longitude;
+//   DateTime timeStamp;
+//   double speed;
+// }
 
-  void _incrementCounter() {
+class _MyHomePageState extends State<MyHomePage> {
+  Stopwatch watch;
+  String totalTimeString = "00:00:00";
+  final timerTick = const Duration(milliseconds: 40);
+  bool isPaused = false;
+  Position startPosition;
+  List<Position> path = [];
+  StreamSubscription<Position> positionStream;
+
+  @override
+  void initState() {
+    var geolocator = Geolocator();
+    var locationOptions =
+        LocationOptions(accuracy: LocationAccuracy.best, distanceFilter: 1);
+    positionStream =
+        geolocator.getPositionStream(locationOptions).listen(onNewPosition);
+    positionStream.pause();
+    watch = Stopwatch();
+
+    super.initState();
+  }
+
+  String formatTime(Duration duration) {
+    if (duration.inHours > 0) {
+      return "${duration.inHours.toString().padLeft(2, '0')}:${(duration.inMinutes % 60).toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}";
+    } else {
+      return "${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}:${((duration.inMilliseconds / 10) % 100).floor().toString().padLeft(2, '0')}";
+    }
+  }
+
+  void onNewPosition(Position position) async {
+    //Position lastPosition = path[path.length - 1];
+
+    // Duration travelTime = position.timestamp.difference(lastPosition.timestamp);
+
+    // double distance = await getDistance(lastPosition, position);
+    // double speed =
+    //     await getSpeedFromPositions(lastPosition, position, travelTime);
+    // double speed2 = getSpeedFromDistance(distance, travelTime);
+    // double speed3 = position.speed;
+    // print("-------------------------------------------------------------");
+
+    // print("distance: " + distance.toString());
+    // print("speed: " + speed.toString());
+    // print("speed2: " + speed2.toString());
+    // print("speed3: " + speed3.toString());
+    //testa vilke av dessa som är mest pålitilg. ta minst 10st och gör ett avarage..
+//! någon bug där den är paused själva geolocation lyssnaren. kör jag inte resume rätt?
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      path.add(position);
+    });
+
+    double distanceFromStart = await getDistance(position, startPosition);
+    print("distance from start:" + distanceFromStart.toString());
+    bool lapCompleted = await isBackAtStartPos(position);
+    if (lapCompleted) {
+      stopWatch();
+    }
+  }
+
+  void tick() {
+    if (watch.isRunning) {
+      Timer(timerTick, tick);
+      setState(() {
+        totalTimeString = formatTime(watch.elapsed);
+      });
+    }
+  }
+
+  Future<bool> isBackAtStartPos(Position position) async {
+    bool atStartPos = await atSameLocation(position, startPosition);
+    bool hasMovedFromStartPos = path.length > 10 &&
+        position.timestamp.difference(startPosition.timestamp).inSeconds > 10;
+    return hasMovedFromStartPos && atStartPos;
+  }
+
+  Future<bool> atSameLocation(Position a, Position b) async {
+    double distanceInMeters = await Geolocator()
+        .distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude);
+    return distanceInMeters < 5.0;
+  }
+
+  Future<double> getDistance(Position a, Position b) async {
+    return await Geolocator()
+        .distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude);
+  }
+
+  Future<double> getSpeedFromPositions(
+      Position a, Position b, Duration travelTime) async {
+    return (await getDistance(a, b) / (travelTime.inMilliseconds / 1000))
+        .roundToDouble();
+  }
+
+  double getSpeedFromDistance(double meters, Duration travelTime) {
+    return (meters / (travelTime.inMilliseconds / 1000)).roundToDouble();
+  }
+
+  void setStartPosition() async {
+    Position position = await Geolocator()
+        .getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    setState(() {
+      startPosition = position;
+      path.add(position);
+      positionStream.resume();
+    });
+  }
+
+  void startwatch() async {
+    if (!isPaused) {
+      setStartPosition();
+    } else {
+      setState(() {
+        isPaused = false;
+        positionStream.resume();
+      });
+    }
+    watch.start();
+    tick();
+  }
+
+  void stopWatch() {
+    watch.stop();
+    setState(() {
+      isPaused = true;
+      positionStream.pause();
+    });
+  }
+
+  void resetWatch() {
+    watch.reset();
+    setState(() {
+      isPaused = false;
+      totalTimeString = "00:00:00";
+      positionStream.pause();
+      path = [];
+      startPosition = null;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
+              totalTimeString,
               style: Theme.of(context).textTheme.display1,
             ),
+            Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Text(path.length.toString()),
+                if (!watch.isRunning)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: RaisedButton(
+                      color: Colors.green,
+                      onPressed: startwatch,
+                      child: Text(isPaused ? "Resume" : "Start"),
+                    ),
+                  ),
+                if (watch.isRunning)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: RaisedButton(
+                      color: Colors.red,
+                      onPressed: stopWatch,
+                      child: Text("Stop"),
+                    ),
+                  ),
+                if (isPaused)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: RaisedButton(
+                      onPressed: resetWatch,
+                      child: Text("Reset"),
+                    ),
+                  )
+              ],
+            )
           ],
         ),
+        // This trailing comma makes auto-formatting nicer for build methods.
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
