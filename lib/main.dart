@@ -53,25 +53,53 @@ class MyHomePage extends StatefulWidget {
 //   double speed;
 // }
 
+class Lap {
+  List<Position> path;
+  Duration time;
+  double distance;
+
+  Lap(
+      {this.path = const [],
+      this.time = const Duration(),
+      this.distance = 0.0}) {
+    this.path = path;
+    this.time = time;
+    this.distance = distance;
+  }
+}
+
 class _MyHomePageState extends State<MyHomePage> {
+  //lite problem att ha två klockor? bättre med en och sen får vi dela upp så att varvtiden som visas på currentlap varv 2 och frammåt är:
+  //watch.elapsed - laps.fold(lap.time) ja det blir hundra delar som blir fel.
   Stopwatch watch;
+  Stopwatch lapWatch;
   String totalTimeString = "00:00:00";
+  String lapTimeString = "";
+
   final timerTick = const Duration(milliseconds: 40);
   bool isPaused = false;
   Position startPosition;
   List<Position> path = [];
+  List<Position> currentLapPath = [];
+  List<Lap> laps = [];
   StreamSubscription<Position> positionStream;
+  String currentSpeed = "";
+  String avarageSpeed = "";
+  String currentSpeed2 = "";
+  String avarageSpeed2 = "";
+  double distance = 0.0;
+  LocationOptions locationOptions =
+      LocationOptions(accuracy: LocationAccuracy.best, distanceFilter: 2);
+  Lap currentLap;
+
+  TextEditingController distanceFilterController = TextEditingController();
+  TextEditingController timeIntervalController = TextEditingController();
 
   @override
   void initState() {
-    var geolocator = Geolocator();
-    var locationOptions =
-        LocationOptions(accuracy: LocationAccuracy.best, distanceFilter: 1);
-    positionStream =
-        geolocator.getPositionStream(locationOptions).listen(onNewPosition);
-    positionStream.pause();
     watch = Stopwatch();
-
+    lapWatch = Stopwatch();
+    currentLap = Lap();
     super.initState();
   }
 
@@ -84,33 +112,53 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void onNewPosition(Position position) async {
-    //Position lastPosition = path[path.length - 1];
+    Position lastPosition = path[path.length - 1];
 
-    // Duration travelTime = position.timestamp.difference(lastPosition.timestamp);
+    Duration travelTime = position.timestamp.difference(lastPosition.timestamp);
 
-    // double distance = await getDistance(lastPosition, position);
-    // double speed =
-    //     await getSpeedFromPositions(lastPosition, position, travelTime);
-    // double speed2 = getSpeedFromDistance(distance, travelTime);
-    // double speed3 = position.speed;
-    // print("-------------------------------------------------------------");
+    double avgSpeed =
+        path.fold(0, (sum, item) => sum + item.speed) / path.length;
 
-    // print("distance: " + distance.toString());
-    // print("speed: " + speed.toString());
-    // print("speed2: " + speed2.toString());
-    // print("speed3: " + speed3.toString());
-    //testa vilke av dessa som är mest pålitilg. ta minst 10st och gör ett avarage..
-//! någon bug där den är paused själva geolocation lyssnaren. kör jag inte resume rätt?
+    double newDistance = await getDistance(lastPosition, position);
+
+    double avgSpeed2 = distance / watch.elapsed.inSeconds;
+
+    double currspeed2 = getSpeedFromDistance(newDistance, travelTime);
+
     setState(() {
       path.add(position);
+      currentLapPath.add(position);
+      currentSpeed = "${position.speed.toStringAsFixed(2)}m/s}";
+      avarageSpeed = "${avgSpeed.toStringAsFixed(2)}m/s}";
+      avarageSpeed2 = "${avgSpeed2.toStringAsFixed(2)}m/s}";
+      currentSpeed2 = "${currspeed2.toStringAsFixed(2)}m/s}";
+
+      distance += newDistance;
+      currentLap.distance += newDistance;
     });
 
     double distanceFromStart = await getDistance(position, startPosition);
     print("distance from start:" + distanceFromStart.toString());
     bool lapCompleted = await isBackAtStartPos(position);
+
     if (lapCompleted) {
-      stopWatch();
+      print("NEW LAP!!!!!");
+      startNewLap();
     }
+  }
+
+  void startNewLap() {
+    setState(() {
+      laps.add(
+        Lap(
+          distance: currentLap.distance,
+          path: currentLapPath,
+          time: lapWatch.elapsed,
+        ),
+      );
+      currentLap = Lap();
+    });
+    lapWatch.reset();
   }
 
   void tick() {
@@ -118,6 +166,9 @@ class _MyHomePageState extends State<MyHomePage> {
       Timer(timerTick, tick);
       setState(() {
         totalTimeString = formatTime(watch.elapsed);
+        if (laps.length > 0) {
+          lapTimeString = formatTime(lapWatch.elapsed);
+        }
       });
     }
   }
@@ -156,39 +207,58 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       startPosition = position;
       path.add(position);
-      positionStream.resume();
     });
+    positionStream.resume();
   }
 
   void startwatch() async {
+    if (positionStream == null) {
+      var geolocator = Geolocator();
+      positionStream =
+          geolocator.getPositionStream(locationOptions).listen(onNewPosition);
+    }
+
     if (!isPaused) {
       setStartPosition();
     } else {
       setState(() {
         isPaused = false;
-        positionStream.resume();
       });
     }
     watch.start();
+    lapWatch.start();
+
     tick();
   }
 
   void stopWatch() {
     watch.stop();
+    lapWatch.stop();
+
     setState(() {
       isPaused = true;
-      positionStream.pause();
     });
+    positionStream.pause();
   }
 
   void resetWatch() {
     watch.reset();
+    lapWatch.reset();
     setState(() {
       isPaused = false;
       totalTimeString = "00:00:00";
-      positionStream.pause();
+      lapTimeString = "";
+      laps = [];
+      currentLap = Lap();
       path = [];
       startPosition = null;
+
+      currentSpeed = "";
+      avarageSpeed = "";
+      currentSpeed2 = "";
+      avarageSpeed2 = "";
+      distance = 0.0;
+      positionStream = null;
     });
   }
 
@@ -204,13 +274,16 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
             Text(
               totalTimeString,
+              style: Theme.of(context).textTheme.display3,
+            ),
+            Text(
+              lapTimeString,
               style: Theme.of(context).textTheme.display1,
             ),
             Row(
               mainAxisSize: MainAxisSize.max,
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Text(path.length.toString()),
                 if (!watch.isRunning)
                   Padding(
                     padding: const EdgeInsets.all(8.0),
@@ -236,9 +309,83 @@ class _MyHomePageState extends State<MyHomePage> {
                       onPressed: resetWatch,
                       child: Text("Reset"),
                     ),
-                  )
+                  ),
               ],
-            )
+            ),
+            Text("points: " + path.length.toString()),
+            Text("distance: " + distance.toStringAsFixed(2) + "m"),
+            Text("speed1 current: " +
+                currentSpeed +
+                " avarage: " +
+                avarageSpeed),
+            Text("speed2 current: " +
+                currentSpeed2 +
+                " avarage: " +
+                avarageSpeed2),
+            SizedBox(
+              height: 50,
+            ),
+            Text("Location options: dist>" +
+                locationOptions.distanceFilter.toString() +
+                " time>" +
+                locationOptions.timeInterval.toString()),
+            SizedBox(
+              height: 15,
+            ),
+            TextField(
+              decoration: InputDecoration(labelText: "distanceFilter"),
+              controller: distanceFilterController,
+              keyboardType: TextInputType.number,
+              onChanged: (String value) {
+                setState(() {
+                  locationOptions = LocationOptions(
+                    accuracy: LocationAccuracy.best,
+                    distanceFilter: int.parse(distanceFilterController.text),
+                    timeInterval: locationOptions.timeInterval,
+                  );
+                });
+              },
+            ),
+            TextField(
+              decoration: InputDecoration(labelText: "timeInterval"),
+              controller: timeIntervalController,
+              keyboardType: TextInputType.number,
+              onChanged: (String value) {
+                setState(() {
+                  locationOptions = LocationOptions(
+                    accuracy: LocationAccuracy.best,
+                    distanceFilter: locationOptions.distanceFilter,
+                    timeInterval: int.parse(timeIntervalController.text),
+                  );
+                });
+              },
+            ),
+            RaisedButton(
+              color: Colors.green,
+              onPressed: () {
+                setState(() {
+                  locationOptions = LocationOptions(
+                    accuracy: locationOptions.accuracy == LocationAccuracy.best
+                        ? LocationAccuracy.high
+                        : LocationAccuracy.best,
+                    distanceFilter: locationOptions.distanceFilter,
+                    timeInterval: locationOptions.timeInterval,
+                  );
+                });
+              },
+              child: Text(locationOptions.accuracy == LocationAccuracy.best
+                  ? "best"
+                  : "high"),
+            ),
+            Container(
+              height: 100,
+              child: ListView(
+                children: laps
+                    .map((lap) => Text(
+                        "${formatTime(lap.time)} ${lap.distance.toStringAsFixed(2)}m"))
+                    .toList(),
+              ),
+            ),
           ],
         ),
         // This trailing comma makes auto-formatting nicer for build methods.
