@@ -3,6 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:lap_tracking/models/lap.dart';
+import 'package:lap_tracking/models/watch_state.dart';
+import 'package:lap_tracking/models/waypoint.dart';
+import 'package:lap_tracking/widgets/lap_list.dart';
+import 'package:lap_tracking/widgets/watch.dart';
+import 'package:lap_tracking/widgets/watch_toolbar.dart';
 
 void main() => runApp(MyApp());
 
@@ -13,7 +18,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Color.fromRGBO(21, 28, 28, 1),
+        textTheme: Theme.of(context).textTheme.apply(
+              bodyColor: Colors.white,
+              displayColor: Colors.white,
+            ),
       ),
       home: Home(),
     );
@@ -27,38 +36,39 @@ class Home extends StatefulWidget {
   _HomeState createState() => _HomeState();
 }
 
-// class PathPoint {
-//   double latitude;
-//   double longitude;
-//   DateTime timeStamp;
-//   double speed;
-// }
-
 //! nu är det dags att snygga till koden. dela upp i widgets. implementera provider?
-// lite testfall.
+//!widgets:
+//- mainWatch (total time, current lap time, speed, distance) egen för speed distance?
+//- lapList
+// - lapListItem (visa avg speed på varvet)
+//- watchToolbar/controllbar
+//- plotMap(annat namn?) kan visas / döljas i stopwatch vyn.
+//- när man avslutat och klickar på spara så kommer man till en ny sida där man anger mer uppgifter. väljer en circut kanske osv. ser mapen
+//man kanske kan redigera, ta bort waypoints som är maerkade som osäkre/konstiga och räkna om allt.
+
+//nästa steg dela upp i flera screens med bootom navbar och login sida. Home - Stopwatch - settings/stats
+
 class _HomeState extends State<Home> {
   //lite problem att ha två klockor? bättre med en och sen får vi dela upp så att varvtiden som visas på currentlap varv 2 och frammåt är:
   //watch.elapsed - laps.fold(lap.time) ja det blir hundra delar som blir fel.
   Stopwatch watch;
-  Stopwatch lapWatch;
-  String totalTimeString = "00:00:00";
-  String lapTimeString = "";
+
+  Duration totalTime = Duration();
+  Duration currentLapTime;
+
+  WatchState watchState = WatchState.unstarted;
 
   final timerTick = const Duration(milliseconds: 40);
-  bool isPaused = false;
-  Position startPosition;
-  List<Position> path = [];
-  List<Position> currentLapPath = [];
+  Waypoint startPosition;
+  List<Waypoint> path = [];
+  List<Waypoint> currentLapPath = [];
   List<Lap> laps = [];
   StreamSubscription<Position> positionStream;
   String currentSpeed = "";
   String avarageSpeed = "";
-  String currentSpeed2 = "";
-  String avarageSpeed2 = "";
   double distance = 0.0;
   LocationOptions locationOptions =
       LocationOptions(accuracy: LocationAccuracy.best, distanceFilter: 2);
-  Lap currentLap;
 
   TextEditingController distanceFilterController = TextEditingController();
   TextEditingController timeIntervalController = TextEditingController();
@@ -66,48 +76,30 @@ class _HomeState extends State<Home> {
   @override
   void initState() {
     watch = Stopwatch();
-    lapWatch = Stopwatch();
-    currentLap = Lap();
     super.initState();
   }
 
-  String formatTime(Duration duration) {
-    if (duration.inHours > 0) {
-      return "${duration.inHours.toString().padLeft(2, '0')}:${(duration.inMinutes % 60).toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}";
-    } else {
-      return "${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}:${((duration.inMilliseconds / 10) % 100).floor().toString().padLeft(2, '0')}";
-    }
-  }
-
   void onNewPosition(Position position) async {
-    Position lastPosition = path[path.length - 1];
-
-    Duration travelTime = position.timestamp.difference(lastPosition.timestamp);
+    Waypoint currentPosition = Waypoint.fromPosition(position);
+    Waypoint lastPosition = path[path.length - 1];
 
     double avgSpeed =
         path.fold(0, (sum, item) => sum + item.speed) / path.length;
 
-    double newDistance = await getDistance(lastPosition, position);
-
-    double avgSpeed2 = distance / watch.elapsed.inSeconds;
-
-    double currspeed2 = getSpeedFromDistance(newDistance, travelTime);
+    double newDistance = await currentPosition.distanceFrom(lastPosition);
 
     setState(() {
-      path.add(position);
-      currentLapPath.add(position);
-      currentSpeed = "${position.speed.toStringAsFixed(2)}m/s}";
+      path.add(currentPosition);
+      currentLapPath.add(currentPosition);
+      currentSpeed = "${currentPosition.speed.toStringAsFixed(2)}m/s}";
       avarageSpeed = "${avgSpeed.toStringAsFixed(2)}m/s}";
-      avarageSpeed2 = "${avgSpeed2.toStringAsFixed(2)}m/s}";
-      currentSpeed2 = "${currspeed2.toStringAsFixed(2)}m/s}";
-
       distance += newDistance;
-      currentLap.distance += newDistance;
     });
 
-    double distanceFromStart = await getDistance(position, startPosition);
+    double distanceFromStart =
+        await startPosition.distanceFrom(currentPosition);
     print("distance from start:" + distanceFromStart.toString());
-    bool lapCompleted = await isBackAtStartPos(position);
+    bool lapCompleted = await isBackAtStartPos(currentPosition);
 
     if (lapCompleted) {
       print("NEW LAP!!!!!");
@@ -119,50 +111,40 @@ class _HomeState extends State<Home> {
     setState(() {
       laps.add(
         Lap(
-          distance: currentLap.distance,
+          index: laps.length,
+          distance: distance - (laps.fold(0, (sum, lap) => sum + lap.distance)),
           path: currentLapPath,
-          time: lapWatch.elapsed,
+          lapTime: watch.elapsed -
+              (laps.fold(Duration(), (sum, lap) => sum + lap.lapTime)),
+          totalTime: watch.elapsed,
         ),
       );
-      currentLap = Lap();
     });
-    lapWatch.reset();
   }
 
   void tick() {
     if (watch.isRunning) {
       Timer(timerTick, tick);
       setState(() {
-        totalTimeString = formatTime(watch.elapsed);
-        if (laps.length > 0) {
-          lapTimeString = formatTime(lapWatch.elapsed);
+        totalTime = watch.elapsed;
+        if (laps.isNotEmpty) {
+          currentLapTime = watch.elapsed -
+              (laps.fold(Duration(), (sum, lap) => sum + lap.lapTime));
         }
       });
     }
   }
 
-  Future<bool> isBackAtStartPos(Position position) async {
-    bool atStartPos = await atSameLocation(position, startPosition);
-    bool hasMovedFromStartPos = path.length > 10 &&
-        position.timestamp.difference(startPosition.timestamp).inSeconds > 10;
+  Future<bool> isBackAtStartPos(Waypoint waypoint) async {
+    bool atStartPos = await atSameLocation(waypoint, startPosition);
+    bool hasMovedFromStartPos = currentLapPath.length > 10;
     return hasMovedFromStartPos && atStartPos;
   }
 
-  Future<bool> atSameLocation(Position a, Position b) async {
+  Future<bool> atSameLocation(Waypoint a, Waypoint b) async {
     double distanceInMeters = await Geolocator()
         .distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude);
     return distanceInMeters < 5.0;
-  }
-
-  Future<double> getDistance(Position a, Position b) async {
-    return await Geolocator()
-        .distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude);
-  }
-
-  Future<double> getSpeedFromPositions(
-      Position a, Position b, Duration travelTime) async {
-    return (await getDistance(a, b) / (travelTime.inMilliseconds / 1000))
-        .roundToDouble();
   }
 
   double getSpeedFromDistance(double meters, Duration travelTime) {
@@ -172,110 +154,83 @@ class _HomeState extends State<Home> {
   void setStartPosition() async {
     Position position = await Geolocator()
         .getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    Waypoint waypoint = Waypoint.fromPosition(position);
     setState(() {
-      startPosition = position;
-      path.add(position);
+      startPosition = waypoint;
+      path.add(waypoint);
     });
     positionStream.resume();
   }
 
-  void startwatch() async {
-    if (positionStream == null) {
-      var geolocator = Geolocator();
-      positionStream =
-          geolocator.getPositionStream(locationOptions).listen(onNewPosition);
-    }
-
-    if (!isPaused) {
+  void startWatch() async {
+    if (watchState == WatchState.unstarted) {
+      if (positionStream == null) {
+        var geolocator = Geolocator();
+        positionStream =
+            geolocator.getPositionStream(locationOptions).listen(onNewPosition);
+      }
       setStartPosition();
-    } else {
-      setState(() {
-        isPaused = false;
-      });
     }
-    watch.start();
-    lapWatch.start();
 
+    watch.start();
     tick();
+    setState(() {
+      watchState = WatchState.running;
+    });
   }
 
   void stopWatch() {
     watch.stop();
-    lapWatch.stop();
-
     setState(() {
-      isPaused = true;
+      watchState = WatchState.stopped;
     });
     positionStream.pause();
   }
 
   void resetWatch() {
+    if (watchState == WatchState.running) {
+      stopWatch();
+    }
     watch.reset();
-    lapWatch.reset();
     setState(() {
-      isPaused = false;
-      totalTimeString = "00:00:00";
-      lapTimeString = "";
+      watchState = WatchState.unstarted;
+      totalTime = Duration();
+      currentLapTime = null;
       laps = [];
-      currentLap = Lap();
       path = [];
       startPosition = null;
-
       currentSpeed = "";
       avarageSpeed = "";
-      currentSpeed2 = "";
-      avarageSpeed2 = "";
       distance = 0.0;
       positionStream = null;
+    });
+  }
+
+  void finishEvent() {
+    stopWatch();
+    setState(() {
+      watchState = WatchState.finished;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
+      body: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text(
-              totalTimeString,
-              style: Theme.of(context).textTheme.display3,
+            Watch(
+              total: totalTime,
+              currentLap: currentLapTime,
             ),
-            Text(
-              lapTimeString,
-              style: Theme.of(context).textTheme.display1,
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                if (!watch.isRunning)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: RaisedButton(
-                      color: Colors.green,
-                      onPressed: startwatch,
-                      child: Text(isPaused ? "Resume" : "Start"),
-                    ),
-                  ),
-                if (watch.isRunning)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: RaisedButton(
-                      color: Colors.red,
-                      onPressed: stopWatch,
-                      child: Text("Stop"),
-                    ),
-                  ),
-                if (isPaused)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: RaisedButton(
-                      onPressed: resetWatch,
-                      child: Text("Reset"),
-                    ),
-                  ),
-              ],
+            WatchToolbar(
+              onReset: resetWatch,
+              onStart: startWatch,
+              onStop: stopWatch,
+              onFinish: finishEvent,
+              onLap: startNewLap,
+              state: watchState,
             ),
             Text("points: " + path.length.toString()),
             Text("distance: " + distance.toStringAsFixed(2) + "m"),
@@ -283,17 +238,9 @@ class _HomeState extends State<Home> {
                 currentSpeed +
                 " avarage: " +
                 avarageSpeed),
-            Text("speed2 current: " +
-                currentSpeed2 +
-                " avarage: " +
-                avarageSpeed2),
             SizedBox(
               height: 50,
             ),
-            Text("Location options: dist>" +
-                locationOptions.distanceFilter.toString() +
-                " time>" +
-                locationOptions.timeInterval.toString()),
             SizedBox(
               height: 15,
             ),
@@ -342,18 +289,11 @@ class _HomeState extends State<Home> {
                   ? "best"
                   : "high"),
             ),
-            Container(
-              height: 100,
-              child: ListView(
-                children: laps
-                    .map((lap) => Text(
-                        "${formatTime(lap.time)} ${lap.distance.toStringAsFixed(2)}m"))
-                    .toList(),
-              ),
+            LapList(
+              laps: laps,
             ),
           ],
         ),
-        // This trailing comma makes auto-formatting nicer for build methods.
       ),
     );
   }
