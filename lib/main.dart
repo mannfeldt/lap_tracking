@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:lap_tracking/models/lap.dart';
@@ -9,7 +10,10 @@ import 'package:lap_tracking/widgets/lap_list.dart';
 import 'package:lap_tracking/widgets/watch.dart';
 import 'package:lap_tracking/widgets/watch_toolbar.dart';
 
-void main() => runApp(MyApp());
+void main() => runApp(DevicePreview(
+      enabled: false,
+      builder: (BuildContext context) => MyApp(),
+    ));
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -36,21 +40,10 @@ class Home extends StatefulWidget {
   _HomeState createState() => _HomeState();
 }
 
-//! nu är det dags att snygga till koden. dela upp i widgets. implementera provider?
-//!widgets:
-//- mainWatch (total time, current lap time, speed, distance) egen för speed distance?
-//- lapList
-// - lapListItem (visa avg speed på varvet)
-//- watchToolbar/controllbar
-//- plotMap(annat namn?) kan visas / döljas i stopwatch vyn.
-//- när man avslutat och klickar på spara så kommer man till en ny sida där man anger mer uppgifter. väljer en circut kanske osv. ser mapen
-//man kanske kan redigera, ta bort waypoints som är maerkade som osäkre/konstiga och räkna om allt.
-
-//nästa steg dela upp i flera screens med bootom navbar och login sida. Home - Stopwatch - settings/stats
-
 class _HomeState extends State<Home> {
-  //lite problem att ha två klockor? bättre med en och sen får vi dela upp så att varvtiden som visas på currentlap varv 2 och frammåt är:
-  //watch.elapsed - laps.fold(lap.time) ja det blir hundra delar som blir fel.
+  final GlobalKey<AnimatedListState> _lapListKey =
+      GlobalKey<AnimatedListState>();
+
   Stopwatch watch;
 
   Duration totalTime = Duration();
@@ -66,12 +59,17 @@ class _HomeState extends State<Home> {
   StreamSubscription<Position> positionStream;
   String currentSpeed = "";
   String avarageSpeed = "";
+  double distanceFromStart = 0.0;
   double distance = 0.0;
+  double distanceFromStartRadius = 5.0;
   LocationOptions locationOptions =
       LocationOptions(accuracy: LocationAccuracy.best, distanceFilter: 2);
 
   TextEditingController distanceFilterController = TextEditingController();
   TextEditingController timeIntervalController = TextEditingController();
+  TextEditingController distanceFromStartController = TextEditingController();
+
+  bool showSettings = false;
 
   @override
   void initState() {
@@ -87,18 +85,17 @@ class _HomeState extends State<Home> {
         path.fold(0, (sum, item) => sum + item.speed) / path.length;
 
     double newDistance = await currentPosition.distanceFrom(lastPosition);
-
+    double dfs = await startPosition.distanceFrom(currentPosition);
     setState(() {
       path.add(currentPosition);
       currentLapPath.add(currentPosition);
       currentSpeed = "${currentPosition.speed.toStringAsFixed(2)}m/s}";
       avarageSpeed = "${avgSpeed.toStringAsFixed(2)}m/s}";
       distance += newDistance;
+      distanceFromStart = dfs;
     });
 
-    double distanceFromStart =
-        await startPosition.distanceFrom(currentPosition);
-    print("distance from start:" + distanceFromStart.toString());
+    print("distance from start:" + dfs.toString());
     bool lapCompleted = await isBackAtStartPos(currentPosition);
 
     if (lapCompleted) {
@@ -117,9 +114,14 @@ class _HomeState extends State<Home> {
           lapTime: watch.elapsed -
               (laps.fold(Duration(), (sum, lap) => sum + lap.lapTime)),
           totalTime: watch.elapsed,
+          speed: currentLapPath.fold(0, (sum, point) => sum + point.speed) /
+              currentLapPath.length,
         ),
       );
+      currentLapPath = [];
     });
+    _lapListKey.currentState.insertItem(0,
+        duration: Duration(milliseconds: laps.length > 1 ? 200 : 600));
   }
 
   void tick() {
@@ -144,11 +146,7 @@ class _HomeState extends State<Home> {
   Future<bool> atSameLocation(Waypoint a, Waypoint b) async {
     double distanceInMeters = await Geolocator()
         .distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude);
-    return distanceInMeters < 5.0;
-  }
-
-  double getSpeedFromDistance(double meters, Duration travelTime) {
-    return (meters / (travelTime.inMilliseconds / 1000)).roundToDouble();
+    return distanceInMeters < distanceFromStartRadius;
   }
 
   void setStartPosition() async {
@@ -192,12 +190,20 @@ class _HomeState extends State<Home> {
       stopWatch();
     }
     watch.reset();
+
+    laps.forEach(
+      (lap) => _lapListKey.currentState.removeItem(
+        0,
+        (context, animation) => Container(),
+      ),
+    );
     setState(() {
       watchState = WatchState.unstarted;
       totalTime = Duration();
       currentLapTime = null;
       laps = [];
       path = [];
+      currentLapPath = [];
       startPosition = null;
       currentSpeed = "";
       avarageSpeed = "";
@@ -207,7 +213,6 @@ class _HomeState extends State<Home> {
   }
 
   void finishEvent() {
-    stopWatch();
     setState(() {
       watchState = WatchState.finished;
     });
@@ -218,80 +223,121 @@ class _HomeState extends State<Home> {
     return Scaffold(
       body: SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: <Widget>[
-            Watch(
-              total: totalTime,
-              currentLap: currentLapTime,
+            GestureDetector(
+              onDoubleTap: () => setState(() {
+                showSettings = !showSettings;
+              }),
+              child: Watch(
+                total: totalTime,
+                currentLap: currentLapTime,
+              ),
             ),
-            WatchToolbar(
-              onReset: resetWatch,
-              onStart: startWatch,
-              onStop: stopWatch,
-              onFinish: finishEvent,
-              onLap: startNewLap,
-              state: watchState,
+            Expanded(
+              child: Stack(
+                children: <Widget>[
+                  Positioned.fill(
+                    child: LapList(
+                      lapListKey: _lapListKey,
+                      laps: laps,
+                    ),
+                  ),
+                  Positioned(
+                    child: Container(
+                      padding: EdgeInsets.only(bottom: 15),
+                      alignment: Alignment.bottomCenter,
+                      child: WatchToolbar(
+                        onReset: resetWatch,
+                        onStart: startWatch,
+                        onStop: stopWatch,
+                        onFinish: finishEvent,
+                        onLap: startNewLap,
+                        state: watchState,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            Text("points: " + path.length.toString()),
-            Text("distance: " + distance.toStringAsFixed(2) + "m"),
-            Text("speed1 current: " +
-                currentSpeed +
-                " avarage: " +
-                avarageSpeed),
-            SizedBox(
-              height: 50,
-            ),
-            SizedBox(
-              height: 15,
-            ),
-            TextField(
-              decoration: InputDecoration(labelText: "distanceFilter"),
-              controller: distanceFilterController,
-              keyboardType: TextInputType.number,
-              onChanged: (String value) {
-                setState(() {
-                  locationOptions = LocationOptions(
-                    accuracy: LocationAccuracy.best,
-                    distanceFilter: int.parse(distanceFilterController.text),
-                    timeInterval: locationOptions.timeInterval,
-                  );
-                });
-              },
-            ),
-            TextField(
-              decoration: InputDecoration(labelText: "timeInterval"),
-              controller: timeIntervalController,
-              keyboardType: TextInputType.number,
-              onChanged: (String value) {
-                setState(() {
-                  locationOptions = LocationOptions(
-                    accuracy: LocationAccuracy.best,
-                    distanceFilter: locationOptions.distanceFilter,
-                    timeInterval: int.parse(timeIntervalController.text),
-                  );
-                });
-              },
-            ),
-            RaisedButton(
-              color: Colors.green,
-              onPressed: () {
-                setState(() {
-                  locationOptions = LocationOptions(
-                    accuracy: locationOptions.accuracy == LocationAccuracy.best
-                        ? LocationAccuracy.high
-                        : LocationAccuracy.best,
-                    distanceFilter: locationOptions.distanceFilter,
-                    timeInterval: locationOptions.timeInterval,
-                  );
-                });
-              },
-              child: Text(locationOptions.accuracy == LocationAccuracy.best
-                  ? "best"
-                  : "high"),
-            ),
-            LapList(
-              laps: laps,
-            ),
+            if (showSettings)
+              Column(
+                children: <Widget>[
+                  Text("points: " + path.length.toString()),
+                  Text("distance: " + distance.toStringAsFixed(2) + "m"),
+                  Text("fromStart: " +
+                      distanceFromStart.toStringAsFixed(2) +
+                      "m"),
+                  Text("speed1 current: " +
+                      currentSpeed +
+                      " avarage: " +
+                      avarageSpeed),
+                  TextField(
+                    decoration: InputDecoration(
+                        labelText: "distanceFilter",
+                        labelStyle: TextStyle(color: Colors.white)),
+                    controller: distanceFilterController,
+                    keyboardType: TextInputType.number,
+                    onChanged: (String value) {
+                      setState(() {
+                        locationOptions = LocationOptions(
+                          accuracy: LocationAccuracy.best,
+                          distanceFilter:
+                              int.parse(distanceFilterController.text),
+                          timeInterval: locationOptions.timeInterval,
+                        );
+                      });
+                    },
+                  ),
+                  TextField(
+                    decoration: InputDecoration(
+                        labelText: "timeInterval",
+                        labelStyle: TextStyle(color: Colors.white)),
+                    controller: timeIntervalController,
+                    keyboardType: TextInputType.number,
+                    onChanged: (String value) {
+                      setState(() {
+                        locationOptions = LocationOptions(
+                          accuracy: LocationAccuracy.best,
+                          distanceFilter: locationOptions.distanceFilter,
+                          timeInterval: int.parse(timeIntervalController.text),
+                        );
+                      });
+                    },
+                  ),
+                  TextField(
+                    decoration: InputDecoration(
+                        labelText: "distance from start",
+                        labelStyle: TextStyle(color: Colors.white)),
+                    controller: distanceFromStartController,
+                    keyboardType: TextInputType.number,
+                    onChanged: (String value) {
+                      setState(() {
+                        distanceFromStartRadius = double.tryParse(value);
+                      });
+                    },
+                  ),
+                  RaisedButton(
+                    color: Colors.green,
+                    onPressed: () {
+                      setState(() {
+                        locationOptions = LocationOptions(
+                          accuracy:
+                              locationOptions.accuracy == LocationAccuracy.best
+                                  ? LocationAccuracy.high
+                                  : LocationAccuracy.best,
+                          distanceFilter: locationOptions.distanceFilter,
+                          timeInterval: locationOptions.timeInterval,
+                        );
+                      });
+                    },
+                    child: Text(
+                        locationOptions.accuracy == LocationAccuracy.best
+                            ? "best"
+                            : "high"),
+                  ),
+                ],
+              ),
           ],
         ),
       ),

@@ -11,22 +11,29 @@ class Watch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          TimeUtil.formatTime(total),
-          style: Theme.of(context).textTheme.headline2,
-        ),
-        AnimatedContainer(
-          duration: Duration(milliseconds: 400),
-          curve: Curves.easeIn,
-          height: currentLap != null ? 40 : 0,
-          child: Text(
-            TimeUtil.formatTime(currentLap ?? Duration()),
-            style: Theme.of(context).textTheme.headline4,
+    final Size size = MediaQuery.of(context).size;
+
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 400),
+      padding: EdgeInsets.only(
+          top: currentLap != null ? 30.0 : (size.height / 2) - 80),
+      child: Column(
+        children: [
+          Text(
+            TimeUtil.formatTime(total),
+            style: Theme.of(context).textTheme.headline2,
           ),
-        ),
-      ],
+          AnimatedOpacity(
+            duration: Duration(milliseconds: 200),
+            curve: Curves.easeIn,
+            opacity: currentLap != null ? 1 : 0,
+            child: Text(
+              TimeUtil.formatTime(currentLap ?? Duration()),
+              style: Theme.of(context).textTheme.headline5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

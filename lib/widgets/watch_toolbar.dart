@@ -66,19 +66,20 @@ class _WatchToolbarState extends State<WatchToolbar>
             highlightColor: Colors.white30,
             onPressed: reset,
             child: Text(
-              "Reset",
-              style: TextStyle(color: Colors.white),
+              "RESET",
+              style: TextStyle(
+                  color: Colors.white, fontSize: 14, letterSpacing: 0.8),
             ),
           ),
         ),
         RawMaterialButton(
           onPressed: widget.state == WatchState.running ? stop : start,
-          padding: EdgeInsets.all(8.0),
+          padding: EdgeInsets.all(16.0),
           shape: CircleBorder(),
-          fillColor: Colors.indigoAccent.shade200,
-          splashColor: Colors.indigoAccent.shade100,
-          focusColor: Colors.indigoAccent.shade100,
-          highlightColor: Colors.indigoAccent.shade100,
+          fillColor: Color.fromRGBO(93, 151, 246, 1),
+          highlightColor: Color.fromRGBO(
+              (93 / 0.9).round(), (151 / 0.9).round(), (255).round(), 1),
+          splashColor: Color.fromRGBO(93, 151, 246, 1),
           elevation: 4.0,
           child: AnimatedIcon(
             icon: AnimatedIcons.play_pause,
@@ -96,16 +97,18 @@ class _WatchToolbarState extends State<WatchToolbar>
                   highlightColor: Colors.white30,
                   onPressed: widget.onFinish,
                   child: Text(
-                    "Finish",
-                    style: TextStyle(color: Colors.white),
+                    "FINISH",
+                    style: TextStyle(
+                        color: Colors.white, fontSize: 14, letterSpacing: 0.8),
                   ),
                 )
               : FlatButton(
                   highlightColor: Colors.white30,
                   onPressed: widget.onLap,
                   child: Text(
-                    "Lap",
-                    style: TextStyle(color: Colors.white),
+                    "LAP",
+                    style: TextStyle(
+                        color: Colors.white, fontSize: 14, letterSpacing: 0.8),
                   ),
                 ),
         ),
