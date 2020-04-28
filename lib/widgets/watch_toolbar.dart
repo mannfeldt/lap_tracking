@@ -9,16 +9,17 @@ class WatchToolbar extends StatefulWidget {
   final Function onLap;
   final WatchState state;
   final Duration currentLap;
-  WatchToolbar(
-      {Key key,
-      this.currentLap,
-      this.onStart,
-      this.onStop,
-      this.onReset,
-      this.state,
-      this.onFinish,
-      this.onLap})
-      : super(key: key);
+
+  WatchToolbar({
+    Key key,
+    this.currentLap,
+    this.onStart,
+    this.onStop,
+    this.onReset,
+    this.state,
+    this.onFinish,
+    this.onLap,
+  }) : super(key: key);
 
   @override
   _WatchToolbarState createState() => _WatchToolbarState();

@@ -15,6 +15,7 @@ class LapListItem extends StatelessWidget {
       ),
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: <Widget>[
           Text(
             lap.distanceVisual,

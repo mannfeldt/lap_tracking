@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:lap_tracking/models/lap.dart';
 import 'package:lap_tracking/models/watch_state.dart';
@@ -50,7 +51,7 @@ class _HomeState extends State<Home> {
   Duration currentLapTime;
 
   WatchState watchState = WatchState.unstarted;
-
+  bool voiceOverMuted = false;
   final timerTick = const Duration(milliseconds: 40);
   Waypoint startPosition;
   List<Waypoint> path = [];
@@ -104,24 +105,28 @@ class _HomeState extends State<Home> {
     }
   }
 
-  void startNewLap() {
+  void startNewLap() async {
+    Lap lap = Lap(
+      index: laps.length,
+      distance: distance - (laps.fold(0, (sum, lap) => sum + lap.distance)),
+      path: currentLapPath,
+      lapTime: watch.elapsed -
+          (laps.fold(Duration(), (sum, lap) => sum + lap.lapTime)),
+      totalTime: watch.elapsed,
+      speed: currentLapPath.fold(0, (sum, point) => sum + point.speed) /
+          currentLapPath.length,
+    );
     setState(() {
-      laps.add(
-        Lap(
-          index: laps.length,
-          distance: distance - (laps.fold(0, (sum, lap) => sum + lap.distance)),
-          path: currentLapPath,
-          lapTime: watch.elapsed -
-              (laps.fold(Duration(), (sum, lap) => sum + lap.lapTime)),
-          totalTime: watch.elapsed,
-          speed: currentLapPath.fold(0, (sum, point) => sum + point.speed) /
-              currentLapPath.length,
-        ),
-      );
+      laps.add(lap);
       currentLapPath = [];
     });
     _lapListKey.currentState.insertItem(0,
         duration: Duration(milliseconds: laps.length > 1 ? 200 : 600));
+
+    if (!voiceOverMuted) {
+      FlutterTts flutterTts = FlutterTts();
+      await flutterTts.speak(lap.voiceOver);
+    }
   }
 
   void tick() {
@@ -218,6 +223,12 @@ class _HomeState extends State<Home> {
     });
   }
 
+  void toggleVoice() {
+    setState(() {
+      voiceOverMuted = !voiceOverMuted;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -225,6 +236,17 @@ class _HomeState extends State<Home> {
         child: Column(
           mainAxisSize: MainAxisSize.max,
           children: <Widget>[
+            Align(
+              alignment: Alignment.topLeft,
+              child: IconButton(
+                highlightColor: Colors.white30,
+                onPressed: toggleVoice,
+                icon: Icon(
+                  voiceOverMuted ? Icons.volume_off : Icons.volume_up,
+                  color: Colors.white,
+                ),
+              ),
+            ),
             GestureDetector(
               onDoubleTap: () => setState(() {
                 showSettings = !showSettings;
@@ -245,7 +267,7 @@ class _HomeState extends State<Home> {
                   ),
                   Positioned(
                     child: Container(
-                      padding: EdgeInsets.only(bottom: 15),
+                      padding: EdgeInsets.only(bottom: 20),
                       alignment: Alignment.bottomCenter,
                       child: WatchToolbar(
                         onReset: resetWatch,

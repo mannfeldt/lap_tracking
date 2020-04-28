@@ -16,7 +16,7 @@ class Watch extends StatelessWidget {
     return AnimatedContainer(
       duration: Duration(milliseconds: 400),
       padding: EdgeInsets.only(
-          top: currentLap != null ? 30.0 : (size.height / 2) - 80),
+          top: currentLap != null ? 0.0 : (size.height / 2) - 120),
       child: Column(
         children: [
           Text(

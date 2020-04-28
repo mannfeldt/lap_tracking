@@ -32,4 +32,18 @@ class Lap {
     String km = distanceString.substring(0, distanceString.length - 3);
     return "$km $m m";
   }
+
+  String get voiceOver {
+    String hours = lapTime.inHours > 0 ? "${lapTime.inHours} hours" : "";
+    String minutes = (lapTime.inMinutes % 60) > 0
+        ? "${(lapTime.inMinutes % 60)} minutes"
+        : "";
+    String seconds = (lapTime.inSeconds % 60) > 0
+        ? "${(lapTime.inSeconds % 60)} seconds"
+        : "";
+    if (index == 0) {
+      return "$distanceVisual completed in $hours $minutes $seconds. Average speed $speedVisual";
+    }
+    return "Lap ${index + 1} completed in $hours $minutes $seconds. Average speed $speedVisual";
+  }
 }
