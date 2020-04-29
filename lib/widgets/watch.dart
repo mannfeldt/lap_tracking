@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:lap_tracking/keys.dart';
 import 'package:lap_tracking/utils/time_util.dart';
 
 class Watch extends StatelessWidget {
@@ -6,7 +8,6 @@ class Watch extends StatelessWidget {
   final Duration currentLap;
   Watch({Key key, this.total, this.currentLap}) : super(key: key);
 
-  //! kanske döpa om till mainWatch och lägga currentlap överst i listan av varv som i stock android stopwatch.
   //mindre fontsize på hundradelarna? som i andrid stock
 
   @override
@@ -21,6 +22,7 @@ class Watch extends StatelessWidget {
         children: [
           Text(
             TimeUtil.formatTime(total),
+            key: Key(Keys.WATCH_TOTAL_TIME),
             style: Theme.of(context).textTheme.headline2,
           ),
           AnimatedOpacity(
@@ -29,6 +31,7 @@ class Watch extends StatelessWidget {
             opacity: currentLap != null ? 1 : 0,
             child: Text(
               TimeUtil.formatTime(currentLap ?? Duration()),
+              key: Key(Keys.WATCH_CURRENT_LAP_TIME),
               style: Theme.of(context).textTheme.headline5,
             ),
           ),

@@ -17,11 +17,9 @@ void main() => runApp(DevicePreview(
     ));
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
       theme: ThemeData(
         scaffoldBackgroundColor: Color.fromRGBO(21, 28, 28, 1),
         textTheme: Theme.of(context).textTheme.apply(
@@ -70,6 +68,7 @@ class _HomeState extends State<Home> {
   TextEditingController timeIntervalController = TextEditingController();
   TextEditingController distanceFromStartController = TextEditingController();
 
+  Timer timer;
   bool showSettings = false;
 
   @override
@@ -125,13 +124,14 @@ class _HomeState extends State<Home> {
 
     if (!voiceOverMuted) {
       FlutterTts flutterTts = FlutterTts();
+
       await flutterTts.speak(lap.voiceOver);
     }
   }
 
   void tick() {
     if (watch.isRunning) {
-      Timer(timerTick, tick);
+      timer = Timer(timerTick, tick);
       setState(() {
         totalTime = watch.elapsed;
         if (laps.isNotEmpty) {
@@ -140,6 +140,14 @@ class _HomeState extends State<Home> {
         }
       });
     }
+  }
+
+  @override
+  dispose() {
+    if (timer != null) {
+      timer.cancel();
+    }
+    super.dispose();
   }
 
   Future<bool> isBackAtStartPos(Waypoint waypoint) async {
@@ -171,8 +179,9 @@ class _HomeState extends State<Home> {
         var geolocator = Geolocator();
         positionStream =
             geolocator.getPositionStream(locationOptions).listen(onNewPosition);
+        positionStream.pause();
+        setStartPosition();
       }
-      setStartPosition();
     }
 
     watch.start();

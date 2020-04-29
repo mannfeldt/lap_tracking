@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lap_tracking/keys.dart';
 import 'package:lap_tracking/models/watch_state.dart';
 
 class WatchToolbar extends StatefulWidget {
@@ -8,11 +9,9 @@ class WatchToolbar extends StatefulWidget {
   final Function onFinish;
   final Function onLap;
   final WatchState state;
-  final Duration currentLap;
 
   WatchToolbar({
     Key key,
-    this.currentLap,
     this.onStart,
     this.onStop,
     this.onReset,
@@ -53,6 +52,12 @@ class _WatchToolbarState extends State<WatchToolbar>
   }
 
   @override
+  dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.max,
@@ -64,16 +69,21 @@ class _WatchToolbarState extends State<WatchToolbar>
           maintainSize: true,
           maintainState: true,
           child: FlatButton(
+            key: Key(Keys.RESET_BUTTON),
             highlightColor: Colors.white30,
             onPressed: reset,
             child: Text(
               "RESET",
               style: TextStyle(
-                  color: Colors.white, fontSize: 14, letterSpacing: 0.8),
+                color: Colors.white,
+                fontSize: 14,
+                letterSpacing: 0.8,
+              ),
             ),
           ),
         ),
         RawMaterialButton(
+          key: Key(Keys.START_STOP_BUTTON),
           onPressed: widget.state == WatchState.running ? stop : start,
           padding: EdgeInsets.all(16.0),
           shape: CircleBorder(),
@@ -95,21 +105,29 @@ class _WatchToolbarState extends State<WatchToolbar>
           maintainState: true,
           child: widget.state == WatchState.stopped
               ? FlatButton(
+                  key: Key(Keys.FINISH_BUTTON),
                   highlightColor: Colors.white30,
                   onPressed: widget.onFinish,
                   child: Text(
                     "FINISH",
                     style: TextStyle(
-                        color: Colors.white, fontSize: 14, letterSpacing: 0.8),
+                      color: Colors.white,
+                      fontSize: 14,
+                      letterSpacing: 0.8,
+                    ),
                   ),
                 )
               : FlatButton(
+                  key: Key(Keys.LAP_BUTTON),
                   highlightColor: Colors.white30,
                   onPressed: widget.onLap,
                   child: Text(
                     "LAP",
                     style: TextStyle(
-                        color: Colors.white, fontSize: 14, letterSpacing: 0.8),
+                      color: Colors.white,
+                      fontSize: 14,
+                      letterSpacing: 0.8,
+                    ),
                   ),
                 ),
         ),

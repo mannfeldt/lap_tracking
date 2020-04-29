@@ -16,8 +16,11 @@ dependencies:
   flutter_tts: ^1.0.0
 
 dev_dependencies:
+  flutter_driver:
+    sdk: flutter
   flutter_test:
     sdk: flutter
+  test: any
 
 flutter:
   uses-material-design: true
