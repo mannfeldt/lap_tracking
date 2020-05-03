@@ -31,6 +31,106 @@ void main() {
     }
   }
 
+  Future<void> setDefaultStartPos() async {
+    await createPath(
+      [
+        Waypoint(
+          latitude: 59.373900,
+          longitude: 16.519100,
+          speed: 4.0,
+        ),
+      ],
+      Duration(milliseconds: 1000),
+    );
+  }
+
+  Future<void> makeDefaultLap() async {
+    await createPath(
+      [
+        Waypoint(
+          latitude: 59.37367871298749,
+          longitude: 16.519485947693707,
+          speed: 4.0,
+        ),
+        Waypoint(
+          latitude: 59.37337871298749,
+          longitude: 16.519785947693707,
+          speed: 4.0,
+        ),
+        Waypoint(
+          latitude: 59.37317871298749,
+          longitude: 16.519985947693707,
+          speed: 4.0,
+        ),
+        Waypoint(
+          latitude: 59.37287871298749,
+          longitude: 16.520985947693707,
+          speed: 4.0,
+        ),
+        Waypoint(
+          latitude: 59.37257871298749,
+          longitude: 16.522985947693707,
+          speed: 4.0,
+        ),
+        Waypoint(
+          latitude: 59.37237871298749,
+          longitude: 16.523985947693707,
+          speed: 4.0,
+        ),
+        //vänder tillbaka
+        Waypoint(
+          latitude: 59.37257871298749,
+          longitude: 16.522985947693707,
+          speed: 4.0,
+        ),
+        Waypoint(
+          latitude: 59.37257871298749,
+          longitude: 16.522985947693707,
+          speed: 4.0,
+        ),
+        Waypoint(
+          latitude: 59.37287871298749,
+          longitude: 16.520985947693707,
+          speed: 4.0,
+        ),
+        Waypoint(
+          latitude: 59.37317871298749,
+          longitude: 16.519985947693707,
+          speed: 4.0,
+        ),
+        Waypoint(
+          latitude: 59.37337871298749,
+          longitude: 16.519785947693707,
+          speed: 4.0,
+        ),
+        Waypoint(
+          latitude: 59.37367871298749,
+          longitude: 16.519485947693707,
+          speed: 4.0,
+        ),
+        Waypoint(
+          latitude: 59.373900,
+          longitude: 16.519100,
+          speed: 4.0,
+        ),
+      ],
+      Duration(milliseconds: 2000),
+    );
+
+    //return to start
+    await createPath(
+      [
+        Waypoint(
+          latitude: 59.373900,
+          longitude: 16.519100,
+          speed: 4.0,
+        ),
+      ],
+      Duration(milliseconds: 2000),
+    );
+    await Future.delayed(Duration(seconds: 10));
+  }
+
   group('app', () {
     final totalTimeTextFinder = find.byValueKey(Keys.WATCH_TOTAL_TIME);
     final currentLapTimeTextFinder =
@@ -140,113 +240,47 @@ void main() {
       await Future.delayed(Duration(milliseconds: 2000));
       await driver.tap(startStopButtonFinder);
     });
-    test(
-      'do automatic laps',
-      () async {
-        await driver.tap(resetButtonFinder);
-        await createPath(
-          [
-            Waypoint(
-              latitude: 59.373900,
-              longitude: 16.519100,
-              speed: 4.0,
-            ),
-          ],
-          Duration(milliseconds: 1000),
-        );
-        await Future.delayed(Duration(milliseconds: 1000));
-        await driver.tap(startStopButtonFinder);
+    test('do automatic laps', () async {
+      await driver.tap(resetButtonFinder);
 
-        await createPath(
-          [
-            Waypoint(
-              latitude: 59.37367871298749,
-              longitude: 16.519485947693707,
-              speed: 4.0,
-            ),
-            Waypoint(
-              latitude: 59.37337871298749,
-              longitude: 16.519785947693707,
-              speed: 4.0,
-            ),
-            Waypoint(
-              latitude: 59.37317871298749,
-              longitude: 16.519985947693707,
-              speed: 4.0,
-            ),
-            Waypoint(
-              latitude: 59.37287871298749,
-              longitude: 16.520985947693707,
-              speed: 4.0,
-            ),
-            Waypoint(
-              latitude: 59.37257871298749,
-              longitude: 16.522985947693707,
-              speed: 4.0,
-            ),
-            Waypoint(
-              latitude: 59.37237871298749,
-              longitude: 16.523985947693707,
-              speed: 4.0,
-            ),
-            //vänder tillbaka
-            Waypoint(
-              latitude: 59.37257871298749,
-              longitude: 16.522985947693707,
-              speed: 4.0,
-            ),
-            Waypoint(
-              latitude: 59.37257871298749,
-              longitude: 16.522985947693707,
-              speed: 4.0,
-            ),
-            Waypoint(
-              latitude: 59.37287871298749,
-              longitude: 16.520985947693707,
-              speed: 4.0,
-            ),
-            Waypoint(
-              latitude: 59.37317871298749,
-              longitude: 16.519985947693707,
-              speed: 4.0,
-            ),
-            Waypoint(
-              latitude: 59.37337871298749,
-              longitude: 16.519785947693707,
-              speed: 4.0,
-            ),
-            Waypoint(
-              latitude: 59.37367871298749,
-              longitude: 16.519485947693707,
-              speed: 4.0,
-            ),
-            Waypoint(
-              latitude: 59.373900,
-              longitude: 16.519100,
-              speed: 4.0,
-            ),
-          ],
-          Duration(milliseconds: 2000),
-        );
-        // expect(await isPresent(lapTitleFinder(0), driver), false);
+      await setDefaultStartPos();
 
-        //return to start
-        await createPath(
-          [
-            Waypoint(
-              latitude: 59.373900,
-              longitude: 16.519100,
-              speed: 4.0,
-            ),
-          ],
-          Duration(milliseconds: 2000),
-        );
-        await Future.delayed(Duration(seconds: 10));
+      await Future.delayed(Duration(milliseconds: 1000));
+      await driver.tap(startStopButtonFinder);
 
-        expect(await isPresent(lapTitleFinder(0), driver), true);
-      },
-      timeout: Timeout(Duration(minutes: 5)),
-    );
+      await makeDefaultLap();
+
+      expect(
+        await isPresent(
+          lapTitleFinder(0),
+          driver,
+          timeout: Duration(seconds: 30),
+        ),
+        true,
+      );
+      String lapItemSpeed =
+          await driver.getText(find.byValueKey(Keys.LAP_LIST_ITEM_SPEED));
+
+      expect(lapItemSpeed, "14.40 km/h");
+
+      await makeDefaultLap();
+      expect(
+        await isPresent(
+          lapTitleFinder(0),
+          driver,
+          timeout: Duration(seconds: 30),
+        ),
+        true,
+      );
+      expect(
+        await isPresent(
+          lapTitleFinder(1),
+          driver,
+          timeout: Duration(seconds: 30),
+        ),
+        true,
+      );
+    }, timeout: Timeout(Duration(minutes: 5)), retry: 5);
   });
 }
 

@@ -4,12 +4,14 @@ import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:lap_tracking/models/lap.dart';
 import 'package:lap_tracking/models/watch_state.dart';
 import 'package:lap_tracking/models/waypoint.dart';
 import 'package:lap_tracking/widgets/lap_list.dart';
 import 'package:lap_tracking/widgets/watch.dart';
 import 'package:lap_tracking/widgets/watch_toolbar.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 void main() => runApp(DevicePreview(
       enabled: false,
@@ -60,7 +62,7 @@ class _HomeState extends State<Home> {
   String avarageSpeed = "";
   double distanceFromStart = 0.0;
   double distance = 0.0;
-  double distanceFromStartRadius = 5.0;
+  double distanceFromStartRadius = 6.0;
   LocationOptions locationOptions =
       LocationOptions(accuracy: LocationAccuracy.best, distanceFilter: 2);
 
@@ -68,11 +70,29 @@ class _HomeState extends State<Home> {
   TextEditingController timeIntervalController = TextEditingController();
   TextEditingController distanceFromStartController = TextEditingController();
 
+  bool isMapView = false;
+  String mapStyle = "";
+
+  Completer<GoogleMapController> _controller = Completer();
+  CameraPosition _initialCameraPosition = CameraPosition(
+    target: LatLng(37.42796133580664, -122.085749655962),
+    zoom: 14.4746,
+  );
+
+  static final CameraPosition _kLake = CameraPosition(
+      bearing: 192.8334901395799,
+      target: LatLng(37.43296265331129, -122.08832357078792),
+      tilt: 59.440717697143555,
+      zoom: 19.151926040649414);
+
   Timer timer;
   bool showSettings = false;
 
   @override
   void initState() {
+    rootBundle.loadString('assets/map_style.txt').then((string) {
+      mapStyle = string;
+    });
     watch = Stopwatch();
     super.initState();
   }
@@ -86,6 +106,9 @@ class _HomeState extends State<Home> {
 
     double newDistance = await currentPosition.distanceFrom(lastPosition);
     double dfs = await startPosition.distanceFrom(currentPosition);
+
+    LatLng latLng = LatLng(currentPosition.latitude, currentPosition.longitude);
+
     setState(() {
       path.add(currentPosition);
       currentLapPath.add(currentPosition);
@@ -95,6 +118,10 @@ class _HomeState extends State<Home> {
       distanceFromStart = dfs;
     });
 
+    final CameraPosition pos = CameraPosition(target: latLng, zoom: 17.0);
+    final GoogleMapController controller = await _controller.future;
+
+    controller.animateCamera(CameraUpdate.newCameraPosition(pos));
     print("distance from start:" + dfs.toString());
     bool lapCompleted = await isBackAtStartPos(currentPosition);
 
@@ -169,6 +196,9 @@ class _HomeState extends State<Home> {
     setState(() {
       startPosition = waypoint;
       path.add(waypoint);
+      _initialCameraPosition = CameraPosition(
+          target: LatLng(startPosition.latitude, startPosition.longitude),
+          zoom: 14.0);
     });
     positionStream.resume();
   }
@@ -223,6 +253,7 @@ class _HomeState extends State<Home> {
       avarageSpeed = "";
       distance = 0.0;
       positionStream = null;
+      isMapView = false;
     });
   }
 
@@ -238,23 +269,59 @@ class _HomeState extends State<Home> {
     });
   }
 
+  void toggleMapView() {
+    setState(() {
+      isMapView = !isMapView;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    //! skriv in ny feature. man ska kunna se simulerade polylines från föregående eller snabbaste varvet. use case är att man ska kunna kolla på dem
+    //och jämföra sitt nuvarande arv med det. blir som ghost trail mode typ. vid varje x meter kan man säga hur tidsskillnaden är också?
+    //jag börde ha tillräcklig info för att få till det?
+    //hitta vilket varj jag vill simulera. kolla på det varvets waypoints som har timestamp.
+    //ALT 1.
+    //gör om timestamp till Duration from newlapStart. skapa en timer för varje waypoint där den efter den satta duration så läggs
+    //den wayponinten till som en point i ghostPolyline
+    //ALT 2.
+    //skapa en gemensam Timer som efter duration lägger till näsat waypoint. sen kallar den på en ny timer med duration till nästa waypoint osv..
+    //tills alla waypoints är slut. då disposar vi timern eller avslutar den på något vis.
+
+    //lägg till detta bara. prioritera firebase integration med att spara routes och profil osv istället.
+    //muteknappen blir en inställningsknapp istället kanske. en sån där navbar som kommer ut från vänster. där kan man muta. navigera till sin profil osv.
+    //eller så har jag en klassisk bottom navbar "inställningar, hem, profil, stopwatch"
+    //steg 1 med routes blir ju bara att man får välja själv vilken route man kört. Kan senare bygga in smartness som ger förlsag och kan ta in andras routes också.
+    //men i början får man när man är klar spara som ny route eller välja en befintlig. Senare får vi också validera att den man väljer är rimlig sett till distance osv.
+    //man kan se sina highscores på de olika routesen man skapat. man kan se statistik över tid hur man förbättrats etc.
+    //man kan starta en ny aktivitet utifrån en route direkt. då får man väglednning(snabbaste varvet ligger där som en polyline redan i någon färg. bra finess till ghost trail också.)
+
     return Scaffold(
       body: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.max,
           children: <Widget>[
-            Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                highlightColor: Colors.white30,
-                onPressed: toggleVoice,
-                icon: Icon(
-                  voiceOverMuted ? Icons.volume_off : Icons.volume_up,
-                  color: Colors.white,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                IconButton(
+                  highlightColor: Colors.white30,
+                  onPressed: toggleVoice,
+                  icon: Icon(
+                    voiceOverMuted ? Icons.volume_off : Icons.volume_up,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
+                if (watchState != WatchState.unstarted)
+                  IconButton(
+                    highlightColor: Colors.white30,
+                    onPressed: toggleMapView,
+                    icon: Icon(
+                      isMapView ? Icons.list : Icons.map,
+                      color: Colors.white,
+                    ),
+                  ),
+              ],
             ),
             GestureDetector(
               onDoubleTap: () => setState(() {
@@ -263,6 +330,7 @@ class _HomeState extends State<Home> {
               child: Watch(
                 total: totalTime,
                 currentLap: currentLapTime,
+                isMapView: isMapView,
               ),
             ),
             Expanded(
@@ -272,6 +340,54 @@ class _HomeState extends State<Home> {
                     child: LapList(
                       lapListKey: _lapListKey,
                       laps: laps,
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Visibility(
+                      visible: isMapView,
+                      maintainAnimation: true,
+                      maintainSize: true,
+                      maintainState: true,
+                      child: GoogleMap(
+                        mapToolbarEnabled: false,
+                        //bryt ut google map till egen widget. skulle vara snyggare om mapen är bakom allt kanske? eller iaf om watch är ovanpå mapen?
+                        //går väl lätt att fixa med att lägga en stack runt hela appen där mapen kan vara i bakgrunden. och på listview så döljer vi den bara med visible
+                        polylines: [
+                          ...laps.map((l) => l.toPolyline).toList(),
+                          Polyline(
+                            points: currentLapPath
+                                .map((p) => LatLng(p.latitude, p.longitude))
+                                .toList(),
+                            polylineId: PolylineId("current"),
+                            endCap: Cap.roundCap,
+                            jointType: JointType.mitered,
+                            zIndex: laps.length + 1,
+                            width: 4,
+                            color: Colors.blue,
+                          )
+                        ].toSet(),
+                        circles: [
+                          Circle(
+                              zIndex: 1000,
+                              circleId: CircleId("startPos"),
+                              center: _initialCameraPosition.target,
+                              radius: distanceFromStartRadius,
+                              strokeColor: Colors.yellow.withOpacity(0.5),
+                              fillColor: Colors.yellow.withOpacity(0.5),
+                              strokeWidth: 1)
+                        ].toSet(),
+                        zoomControlsEnabled: false,
+                        buildingsEnabled: false,
+                        zoomGesturesEnabled: true,
+                        mapType: MapType.normal,
+                        initialCameraPosition: _initialCameraPosition,
+                        onMapCreated: (GoogleMapController controller) {
+                          if (!_controller.isCompleted) {
+                            controller.setMapStyle(mapStyle);
+                            _controller.complete(controller);
+                          }
+                        },
+                      ),
                     ),
                   ),
                   Positioned(

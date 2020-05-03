@@ -6,7 +6,9 @@ import 'package:lap_tracking/utils/time_util.dart';
 class Watch extends StatelessWidget {
   final Duration total;
   final Duration currentLap;
-  Watch({Key key, this.total, this.currentLap}) : super(key: key);
+  final bool isMapView;
+  Watch({Key key, @required this.total, this.currentLap, this.isMapView})
+      : super(key: key);
 
   //mindre fontsize på hundradelarna? som i andrid stock
 
@@ -17,7 +19,7 @@ class Watch extends StatelessWidget {
     return AnimatedContainer(
       duration: Duration(milliseconds: 400),
       padding: EdgeInsets.only(
-          top: currentLap != null ? 0.0 : (size.height / 2) - 120),
+          top: currentLap != null || isMapView ? 0.0 : (size.height / 2) - 120),
       child: Column(
         children: [
           Text(
@@ -25,10 +27,8 @@ class Watch extends StatelessWidget {
             key: Key(Keys.WATCH_TOTAL_TIME),
             style: Theme.of(context).textTheme.headline2,
           ),
-          AnimatedOpacity(
-            duration: Duration(milliseconds: 200),
-            curve: Curves.easeIn,
-            opacity: currentLap != null ? 1 : 0,
+          Visibility(
+            visible: currentLap != null,
             child: Text(
               TimeUtil.formatTime(currentLap ?? Duration()),
               key: Key(Keys.WATCH_CURRENT_LAP_TIME),

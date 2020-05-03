@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:lap_tracking/models/waypoint.dart';
 
 class Lap {
@@ -22,6 +24,15 @@ class Lap {
     this.index = index;
     this.speed = speed;
   }
+
+  Polyline get toPolyline => Polyline(
+        polylineId: PolylineId("$index"),
+        color: Colors.grey,
+        width: 1,
+        zIndex: index,
+        points: path.map((p) => LatLng(p.latitude, p.longitude)).toList(),
+      );
+
   String get speedVisual => "${(speed * 3.6).toStringAsFixed(2)} km/h";
   String get distanceVisual {
     String distanceString = distance.toStringAsFixed(0);
@@ -42,8 +53,8 @@ class Lap {
         ? "${(lapTime.inSeconds % 60)} seconds"
         : "";
     if (index == 0) {
-      return "$distanceVisual completed in $hours $minutes $seconds. Average speed $speedVisual";
+      return "${distance.toStringAsFixed(0)} meters completed in $hours $minutes $seconds. Average speed ${(speed * 3.6).toStringAsFixed(2)} kilometers per hour";
     }
-    return "Lap ${index + 1} completed in $hours $minutes $seconds. Average speed $speedVisual";
+    return "Lap ${index + 1} completed in $hours $minutes $seconds. Average speed ${(speed * 3.6).toStringAsFixed(2)} kilometers per hour";
   }
 }
