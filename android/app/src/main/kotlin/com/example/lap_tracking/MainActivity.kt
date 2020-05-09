@@ -1,4 +1,4 @@
-package com.example.lap_tracking
+package mannfeldt.lap_tracking
 
 import androidx.annotation.NonNull;
 import io.flutter.embedding.android.FlutterActivity

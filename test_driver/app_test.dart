@@ -152,14 +152,14 @@ void main() {
         'shell',
         'pm',
         'grant',
-        'com.example.lap_tracking',
+        'mannfeldt.lap_tracking',
         'android.permission.ACCESS_FINE_LOCATION'
       ]);
       await Process.run(adbPath, [
         'shell',
         'pm',
         'grant',
-        'com.example.lap_tracking',
+        'mannfeldt.lap_tracking',
         'android.permission.ACCESS_COARSE_LOCATION'
       ]);
 
