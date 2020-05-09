@@ -29,9 +29,11 @@ class _WatchToolbarState extends State<WatchToolbar>
   Animation<double> animation;
   AnimationController controller;
 
-  void start() {
-    controller.forward();
-    widget.onStart();
+  void start() async {
+    bool started = await widget.onStart();
+    if (started) {
+      controller.forward();
+    }
   }
 
   void stop() {
@@ -99,37 +101,24 @@ class _WatchToolbarState extends State<WatchToolbar>
           ),
         ),
         Visibility(
-          visible: widget.state != WatchState.unstarted,
+          visible: widget.state != WatchState.unstarted &&
+              widget.state != WatchState.stopped,
           maintainAnimation: true,
           maintainSize: true,
           maintainState: true,
-          child: widget.state == WatchState.stopped
-              ? FlatButton(
-                  key: Key(Keys.FINISH_BUTTON),
-                  highlightColor: Colors.white30,
-                  onPressed: widget.onFinish,
-                  child: Text(
-                    "FINISH",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                )
-              : FlatButton(
-                  key: Key(Keys.LAP_BUTTON),
-                  highlightColor: Colors.white30,
-                  onPressed: widget.onLap,
-                  child: Text(
-                    "LAP",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
+          child: FlatButton(
+            key: Key(Keys.LAP_BUTTON),
+            highlightColor: Colors.white30,
+            onPressed: widget.onLap,
+            child: Text(
+              "LAP",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
         ),
       ],
     );

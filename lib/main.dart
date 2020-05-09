@@ -251,7 +251,14 @@ class _HomeState extends State<Home> {
     }
   }
 
-  void onStart() async {
+  Future<bool> onStart() async {
+    GeolocationStatus status =
+        await Geolocator().checkGeolocationPermissionStatus();
+    if (status.value == 0) {
+      await Geolocator().getCurrentPosition();
+      return false;
+    }
+
     if (watchState == WatchState.unstarted) {
       setState(() {});
       startCountdownTimer = Timer(Duration(seconds: 6), startWatch);
@@ -262,6 +269,7 @@ class _HomeState extends State<Home> {
     } else {
       startWatch();
     }
+    return true;
   }
 
   void voiceCountdown() async {
