@@ -51,7 +51,7 @@ void main() {
         lapTime:
             Duration(hours: 2, minutes: 15, seconds: 10, milliseconds: 900),
       ).voiceOver,
-      "100 m completed in 2 hours 15 minutes 10 seconds. Average speed 36.00 km/h",
+      "100 meters completed in 2 hours 15 minutes 10 seconds. Average speed 36.00 kilometers per hour",
     );
     expect(
       Lap(
@@ -60,7 +60,7 @@ void main() {
         speed: 20.5,
         lapTime: Duration(hours: 2),
       ).voiceOver,
-      "10 050 m completed in 2 hours  . Average speed 73.80 km/h",
+      "10050 meters completed in 2 hours  . Average speed 73.80 kilometers per hour",
     );
     expect(
       Lap(
@@ -70,7 +70,7 @@ void main() {
         lapTime:
             Duration(hours: 2, minutes: 15, seconds: 10, milliseconds: 900),
       ).voiceOver,
-      "Lap 2 completed in 2 hours 15 minutes 10 seconds. Average speed 36.00 km/h",
+      "Lap 2 completed in 2 hours 15 minutes 10 seconds. Average speed 36.00 kilometers per hour",
     );
     expect(
       Lap(
@@ -79,7 +79,7 @@ void main() {
         speed: 20.5,
         lapTime: Duration(hours: 2),
       ).voiceOver,
-      "Lap 3 completed in 2 hours  . Average speed 73.80 km/h",
+      "Lap 3 completed in 2 hours  . Average speed 73.80 kilometers per hour",
     );
     expect(
       Lap(
@@ -88,7 +88,7 @@ void main() {
         speed: 15.5,
         lapTime: Duration(hours: 2, seconds: 30),
       ).voiceOver,
-      "Lap 4 completed in 2 hours  30 seconds. Average speed 55.80 km/h",
+      "Lap 4 completed in 2 hours  30 seconds. Average speed 55.80 kilometers per hour",
     );
     expect(
       Lap(
@@ -97,7 +97,7 @@ void main() {
         speed: 0.0,
         lapTime: Duration(seconds: 30),
       ).voiceOver,
-      "Lap 5 completed in   30 seconds. Average speed 0.00 km/h",
+      "Lap 5 completed in   30 seconds. Average speed 0.00 kilometers per hour",
     );
   });
 }

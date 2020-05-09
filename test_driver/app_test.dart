@@ -148,8 +148,6 @@ void main() {
     setUpAll(() async {
       final Map<String, String> envVars = Platform.environment;
 
-      print(envVars['ANDROID_HOME']);
-
       await Process.run(adbPath, [
         'shell',
         'pm',
@@ -182,29 +180,32 @@ void main() {
     });
 
     test('starts at 0', () async {
-      expect(await driver.getText(totalTimeTextFinder), "00:00:00");
+      expect(await driver.getText(totalTimeTextFinder), "0");
     });
 
     test('start stop watch', () async {
       await driver.tap(startStopButtonFinder);
-      await Future.delayed(Duration(milliseconds: 2500));
+      await Future.delayed(Duration(milliseconds: 8500));
+      //should not be able to stop
+      // await driver.tap(startStopButtonFinder);
+
       await driver.tap(startStopButtonFinder);
       String totalTimePast = await driver.getText(totalTimeTextFinder);
-      expect(totalTimePast.contains("00:02:"), true);
+      expect(totalTimePast, "2");
       await driver.tap(startStopButtonFinder);
       await Future.delayed(Duration(milliseconds: 2000));
       await driver.tap(startStopButtonFinder);
       totalTimePast = await driver.getText(totalTimeTextFinder);
-      expect(totalTimePast.contains("00:04:"), true);
+      expect(totalTimePast, "4");
     });
     test('reset', () async {
       await driver.tap(resetButtonFinder);
       String totalTimePast = await driver.getText(totalTimeTextFinder);
-      expect(totalTimePast, "00:00:00");
+      expect(totalTimePast, "0");
     });
     test('do manual laps', () async {
       await driver.tap(startStopButtonFinder);
-      await Future.delayed(Duration(milliseconds: 2500));
+      await Future.delayed(Duration(milliseconds: 8500));
 
       await driver.tap(lapButtonFinder);
       await Future.delayed(Duration(milliseconds: 2500));
@@ -220,7 +221,7 @@ void main() {
         ),
       );
 
-      expect(totalTimePast.contains("00:05:"), true);
+      expect(totalTimePast, "5");
       expect(currentLapTimePast.contains("00:02:"), true);
       expect(lapItemTitle.contains("#1    00:02:"), true);
 
@@ -247,6 +248,7 @@ void main() {
 
       await Future.delayed(Duration(milliseconds: 1000));
       await driver.tap(startStopButtonFinder);
+      await Future.delayed(Duration(seconds: 7));
 
       await makeDefaultLap();
 
@@ -258,10 +260,10 @@ void main() {
         ),
         true,
       );
-      String lapItemSpeed =
-          await driver.getText(find.byValueKey(Keys.LAP_LIST_ITEM_SPEED));
+      // String lapItemSpeed =
+      //     await driver.getText(find.byValueKey(Keys.LAP_LIST_ITEM_SPEED));
 
-      expect(lapItemSpeed, "14.40 km/h");
+      // expect(lapItemSpeed, "14.40 km/h");
 
       await makeDefaultLap();
       expect(

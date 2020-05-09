@@ -26,8 +26,14 @@ void main() {
         ),
       ),
     );
+    final richTextWidget = tester
+        .element(find.byKey(Key(Keys.WATCH_TOTAL_TIME)))
+        .widget as RichText;
 
-    expect(find.text("45:20:98"), findsOneWidget);
+    final actual =
+        richTextWidget.text.text + richTextWidget.text.children[0].text;
+
+    expect(actual, "45:20 98");
     expect(find.byKey(Key(Keys.WATCH_CURRENT_LAP_TIME)), findsNothing);
   });
   testWidgets('render current lap', (WidgetTester tester) async {
@@ -40,8 +46,12 @@ void main() {
         ),
       ),
     );
-
-    expect(find.text("01:45:20"), findsOneWidget);
+    final richTextWidget = tester
+        .element(find.byKey(Key(Keys.WATCH_TOTAL_TIME)))
+        .widget as RichText;
+    final actual =
+        richTextWidget.text.text + richTextWidget.text.children[0].text;
+    expect(actual, "1:45 20");
     expect(find.byKey(Key(Keys.WATCH_CURRENT_LAP_TIME)), findsOneWidget);
     expect(find.text("00:10:04"), findsOneWidget);
   });
