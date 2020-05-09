@@ -89,7 +89,7 @@ class _HomeState extends State<Home> {
   Completer<GoogleMapController> _controller = Completer();
   CameraPosition _initialCameraPosition = CameraPosition(
     target: LatLng(37.42796133580664, -122.085749655962),
-    zoom: 14.4746,
+    zoom: 17,
   );
 
   Timer timer;
@@ -107,27 +107,27 @@ class _HomeState extends State<Home> {
   void onLightData(int luxValue) async {
     if (luxValue > 2000 &&
         (lightMode == LightMode.NIGHT || lightMode == LightMode.UNDEFINED)) {
+      GoogleMapController ctrl = await _controller.future;
+      if (lightMode == LightMode.DAYLIGHT) {
+        ctrl.setMapStyle(null);
+      } else {
+        ctrl.setMapStyle(mapDarkStyle);
+      }
       setState(() {
         lightMode = LightMode.DAYLIGHT;
       });
-      GoogleMapController ctrl = await _controller.future;
-      if (lightMode == LightMode.DAYLIGHT) {
-        ctrl.setMapStyle(null);
-      } else {
-        ctrl.setMapStyle(mapDarkStyle);
-      }
     }
     if (luxValue <= 2000 &&
         (lightMode == LightMode.DAYLIGHT || lightMode == LightMode.UNDEFINED)) {
-      setState(() {
-        lightMode = LightMode.NIGHT;
-      });
       GoogleMapController ctrl = await _controller.future;
       if (lightMode == LightMode.DAYLIGHT) {
         ctrl.setMapStyle(null);
       } else {
         ctrl.setMapStyle(mapDarkStyle);
       }
+      setState(() {
+        lightMode = LightMode.NIGHT;
+      });
     }
   }
 
@@ -160,9 +160,9 @@ class _HomeState extends State<Home> {
       distance += newDistance;
       distanceFromStart = dfs;
     });
-
-    final CameraPosition pos = CameraPosition(target: latLng, zoom: 17.0);
     final GoogleMapController controller = await _controller.future;
+    double zoom = await controller.getZoomLevel();
+    final CameraPosition pos = CameraPosition(target: latLng, zoom: zoom);
 
     controller.animateCamera(CameraUpdate.newCameraPosition(pos));
     print("distance from start:" + dfs.toString());
@@ -364,6 +364,55 @@ class _HomeState extends State<Home> {
       body: SafeArea(
         child: Stack(
           children: [
+            Positioned.fill(
+              child: Visibility(
+                visible: isMapView,
+                maintainAnimation: true,
+                maintainSize: true,
+                maintainState: true,
+                child: GoogleMap(
+                  mapToolbarEnabled: false,
+                  //bryt ut google map till egen widget. skulle vara snyggare om mapen är bakom allt kanske? eller iaf om watch är ovanpå mapen?
+                  //går väl lätt att fixa med att lägga en stack runt hela appen där mapen kan vara i bakgrunden. och på listview så döljer vi den bara med visible
+                  //kan ha map controller osv i den nya widgeten men vi behöver callbacks osv? implementera en changeNotifier/provider nu.
+                  polylines: [
+                    ...laps.map((l) => l.toPolyline).toList(),
+                    Polyline(
+                      points: currentLapPath
+                          .map((p) => LatLng(p.latitude, p.longitude))
+                          .toList(),
+                      polylineId: PolylineId("current"),
+                      endCap: Cap.roundCap,
+                      jointType: JointType.mitered,
+                      zIndex: laps.length + 1,
+                      width: 4,
+                      color: Colors.blue,
+                    )
+                  ].toSet(),
+                  circles: [
+                    Circle(
+                      zIndex: 1000,
+                      circleId: CircleId("startPos"),
+                      center: _initialCameraPosition.target,
+                      radius: distanceFromStartRadius,
+                      strokeColor: Colors.blue.shade600,
+                      fillColor: Colors.blue.shade300,
+                      strokeWidth: 1,
+                    )
+                  ].toSet(),
+                  zoomControlsEnabled: false,
+                  buildingsEnabled: false,
+                  zoomGesturesEnabled: true,
+                  mapType: MapType.normal,
+                  initialCameraPosition: _initialCameraPosition,
+                  onMapCreated: (GoogleMapController controller) async {
+                    if (!_controller.isCompleted) {
+                      _controller.complete(controller);
+                    }
+                  },
+                ),
+              ),
+            ),
             Column(
               mainAxisSize: MainAxisSize.max,
               children: <Widget>[
@@ -403,57 +452,14 @@ class _HomeState extends State<Home> {
                   child: Stack(
                     children: <Widget>[
                       Positioned.fill(
-                        child: LapList(
-                          lapListKey: _lapListKey,
-                          laps: laps,
-                        ),
-                      ),
-                      Positioned.fill(
                         child: Visibility(
-                          visible: isMapView,
+                          visible: !isMapView,
                           maintainAnimation: true,
                           maintainSize: true,
                           maintainState: true,
-                          child: GoogleMap(
-                            mapToolbarEnabled: false,
-                            //bryt ut google map till egen widget. skulle vara snyggare om mapen är bakom allt kanske? eller iaf om watch är ovanpå mapen?
-                            //går väl lätt att fixa med att lägga en stack runt hela appen där mapen kan vara i bakgrunden. och på listview så döljer vi den bara med visible
-                            //kan ha map controller osv i den nya widgeten men vi behöver callbacks osv? implementera en changeNotifier/provider nu.
-                            polylines: [
-                              ...laps.map((l) => l.toPolyline).toList(),
-                              Polyline(
-                                points: currentLapPath
-                                    .map((p) => LatLng(p.latitude, p.longitude))
-                                    .toList(),
-                                polylineId: PolylineId("current"),
-                                endCap: Cap.roundCap,
-                                jointType: JointType.mitered,
-                                zIndex: laps.length + 1,
-                                width: 4,
-                                color: Colors.blue,
-                              )
-                            ].toSet(),
-                            circles: [
-                              Circle(
-                                  zIndex: 1000,
-                                  circleId: CircleId("startPos"),
-                                  center: _initialCameraPosition.target,
-                                  radius: distanceFromStartRadius,
-                                  strokeColor: Colors.blue.shade600,
-                                  fillColor: Colors.blue.shade300,
-                                  strokeWidth: 1)
-                            ].toSet(),
-                            zoomControlsEnabled: false,
-                            buildingsEnabled: false,
-                            zoomGesturesEnabled: true,
-                            mapType: MapType.normal,
-                            initialCameraPosition: _initialCameraPosition,
-                            onMapCreated:
-                                (GoogleMapController controller) async {
-                              if (!_controller.isCompleted) {
-                                _controller.complete(controller);
-                              }
-                            },
+                          child: LapList(
+                            lapListKey: _lapListKey,
+                            laps: laps,
                           ),
                         ),
                       ),
