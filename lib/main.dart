@@ -69,7 +69,7 @@ class _HomeState extends State<Home> {
   String avarageSpeed = "";
   double distanceFromStart = 0.0;
   double distance = 0.0;
-  double distanceFromStartRadius = 8.0;
+  double distanceFromStartRadius = 10.0;
   LocationOptions locationOptions =
       LocationOptions(accuracy: LocationAccuracy.best, distanceFilter: 1);
 
@@ -88,8 +88,8 @@ class _HomeState extends State<Home> {
 
   Completer<GoogleMapController> _controller = Completer();
   CameraPosition _initialCameraPosition = CameraPosition(
-    target: LatLng(37.42796133580664, -122.085749655962),
-    zoom: 17,
+    target: LatLng(59.334591, 18.063240),
+    zoom: 15,
   );
 
   Timer timer;
@@ -239,12 +239,19 @@ class _HomeState extends State<Home> {
     Position position = await Geolocator()
         .getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
     Waypoint waypoint = Waypoint.fromPosition(position);
+
+    // final GoogleMapController controller = await _controller.future;
+    // final CameraPosition pos = CameraPosition(
+    //     target: LatLng(waypoint.latitude, waypoint.longitude), zoom: 20.0);
+    // controller.animateCamera(CameraUpdate.newCameraPosition(pos));
+
     setState(() {
       startPosition = waypoint;
       path.add(waypoint);
       _initialCameraPosition = CameraPosition(
-          target: LatLng(startPosition.latitude, startPosition.longitude),
-          zoom: 14.0);
+        target: LatLng(startPosition.latitude, startPosition.longitude),
+        zoom: 15.0,
+      );
     });
     if (positionStream != null) {
       positionStream.resume();
@@ -404,7 +411,7 @@ class _HomeState extends State<Home> {
                       center: _initialCameraPosition.target,
                       radius: distanceFromStartRadius,
                       strokeColor: Colors.blue.shade600,
-                      fillColor: Colors.blue.shade300,
+                      fillColor: Colors.blue.shade600.withOpacity(0.5),
                       strokeWidth: 1,
                     )
                   ].toSet(),
