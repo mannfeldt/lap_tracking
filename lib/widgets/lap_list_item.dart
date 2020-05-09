@@ -13,7 +13,7 @@ class LapListItem extends StatelessWidget {
     return ListTile(
       key: Key(Keys.lapListItem(lap.index)),
       title: Text(
-        "#${(lap.index + 1).toString().padRight(2, "  ")}  ${TimeUtil.formatTime(lap.lapTime)}  ${TimeUtil.formatTime(lap.totalTime)}",
+        "#${(lap.index + 1).toString().padRight(2, "  ")}  ${TimeUtil.formatLapItemTime(lap.lapTime)}  ${TimeUtil.formatLapItemTime(lap.totalTime)}",
         key: Key(Keys.LAP_LIST_ITEM_TITLE),
       ),
       trailing: Column(
